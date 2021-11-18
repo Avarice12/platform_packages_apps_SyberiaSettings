@@ -20,7 +20,9 @@ import android.provider.SearchIndexableResource;
 
 import android.os.Bundle;
 import android.os.UserHandle;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.content.res.Resources;
 import android.provider.Settings;
 import com.android.settings.R;
 
@@ -38,6 +40,7 @@ import com.android.settings.SettingsPreferenceFragment;
 import com.android.internal.logging.nano.MetricsProto;
 
 import com.syberia.settings.preference.SystemSettingListPreference;
+import com.syberia.settings.preference.SecureSettingSwitchPreference;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +54,10 @@ public class StatusBarSettings extends SettingsPreferenceFragment implements
     private static final String KEY_STATUS_BAR_BATTERY_STYLE = "status_bar_battery_style";
     private static final String KEY_STATUS_BAR_BATTERY_TEXT_CHARGING = "status_bar_battery_text_charging";
 
+    private static final String SYSTEMUI_PACKAGE = "com.android.systemui";
+    private static final String CONFIG_RESOURCE_NAME = "flag_combined_status_bar_signal_icons";
+    private static final String COMBINED_STATUSBAR_ICONS = "show_combined_status_bar_signal_icons";
+
     private static final int BATTERY_STYLE_PORTRAIT = 0;
     private static final int BATTERY_STYLE_TEXT = 4;
     private static final int BATTERY_STYLE_HIDDEN = 5;
@@ -58,11 +65,13 @@ public class StatusBarSettings extends SettingsPreferenceFragment implements
     private SystemSettingListPreference mBatteryPercent;
     private SystemSettingListPreference mBatteryStyle;
     private SwitchPreference mBatteryTextCharging;
+    private SecureSettingSwitchPreference mCombinedIcons;
 
     @Override
     public void onCreate(Bundle bundle) {
         super.onCreate(bundle);
         addPreferencesFromResource(R.xml.statusbar_settings);
+        ContentResolver resolver = getActivity().getContentResolver();
 
         int batterystyle = Settings.System.getIntForUser(getContentResolver(),
                 Settings.System.STATUS_BAR_BATTERY_STYLE, BATTERY_STYLE_PORTRAIT, UserHandle.USER_CURRENT);
@@ -80,6 +89,27 @@ public class StatusBarSettings extends SettingsPreferenceFragment implements
         mBatteryTextCharging = (SwitchPreference) findPreference(KEY_STATUS_BAR_BATTERY_TEXT_CHARGING);
         mBatteryTextCharging.setEnabled(batterystyle == BATTERY_STYLE_HIDDEN ||
                 (batterystyle != BATTERY_STYLE_TEXT && batterypercent != 2));
+
+        mCombinedIcons = (SecureSettingSwitchPreference)
+                findPreference(COMBINED_STATUSBAR_ICONS);
+        Resources sysUIRes = null;
+        boolean def = false;
+        int resId = 0;
+        try {
+            sysUIRes = getActivity().getPackageManager()
+                    .getResourcesForApplication(SYSTEMUI_PACKAGE);
+        } catch (Exception ignored) {
+            // If you don't have system UI you have bigger issues
+        }
+        if (sysUIRes != null) {
+            resId = sysUIRes.getIdentifier(
+                    CONFIG_RESOURCE_NAME, "bool", SYSTEMUI_PACKAGE);
+            if (resId != 0) def = sysUIRes.getBoolean(resId);
+        }
+        boolean enabled = Settings.Secure.getInt(resolver,
+                COMBINED_STATUSBAR_ICONS, def ? 1 : 0) == 1;
+        mCombinedIcons.setChecked(enabled);
+        mCombinedIcons.setOnPreferenceChangeListener(this);
     }
 
     @Override
@@ -89,6 +119,7 @@ public class StatusBarSettings extends SettingsPreferenceFragment implements
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
+        ContentResolver resolver = getActivity().getContentResolver();
         if (preference == mBatteryStyle) {
             int value = Integer.parseInt((String) newValue);
             int batterypercent = Settings.System.getIntForUser(getContentResolver(),
@@ -104,6 +135,11 @@ public class StatusBarSettings extends SettingsPreferenceFragment implements
                     Settings.System.STATUS_BAR_BATTERY_STYLE, BATTERY_STYLE_PORTRAIT, UserHandle.USER_CURRENT);
             mBatteryTextCharging.setEnabled(batterystyle == BATTERY_STYLE_HIDDEN ||
                     (batterystyle != BATTERY_STYLE_TEXT && value != 2));
+            return true;
+        } else if (preference == mCombinedIcons) {
+            boolean enabled = (boolean) newValue;
+            Settings.Secure.putInt(resolver,
+                    COMBINED_STATUSBAR_ICONS, enabled ? 1 : 0);
             return true;
         }
         return false;
