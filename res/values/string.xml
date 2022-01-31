@@ -875,4 +875,9 @@
     <!-- Combined signal icons in status bar -->
     <string name="combined_status_bar_signal_icons">Combined signal icons</string>
     <string name="combined_status_bar_signal_icons_summary">Enable combined signal icons in status bar.\nRequires a SystemUI restart</string>
+
+    <!-- Unlimited g00gle ph0t0s st0rage -->
+    <string name="use_photos_spoof_title">Unlimited Photos storage</string>
+    <string name="use_photos_spoof_summary">Your device will be identified as a Pixel XL by the Photos app to get unlimited photo storage at original quality</string>
+    <string name="photos_spoof_toast">Restart the Photos app for it to take effect</string>
 </resources>
